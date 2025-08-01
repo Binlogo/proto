@@ -1,11 +1,17 @@
 /// Return an error message wrapped in `WithReturnCode` , for use within `#[plugin_fn]`.
 #[macro_export]
 macro_rules! plugin_err {
-    (code = $code:expr, $($arg:tt)+) => {
-        WithReturnCode::<Error>::new(anyhow!($($arg)+), $code.into())
+    (code = $code:expr, $fmt:literal $(, $arg:expr)* $(,)?) => {
+        WithReturnCode::<Error>::new(Error::msg(format!($fmt $(, $arg)*)), $code.into())
     };
-    ($($arg:tt)+) => {
-        WithReturnCode::<Error>::new(anyhow!($($arg)+), 1)
+    (code = $code:expr, $msg:expr) => {
+        WithReturnCode::<Error>::new(Error::msg($msg.to_string()), $code.into())
+    };
+    ($fmt:literal $(, $arg:expr)* $(,)?) => {
+        WithReturnCode::<Error>::new(Error::msg(format!($fmt $(, $arg)*)), 1)
+    };
+    ($msg:expr) => {
+        WithReturnCode::<Error>::new(Error::msg($msg.to_string()), 1)
     };
 }
 

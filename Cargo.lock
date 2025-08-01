@@ -5223,7 +5223,6 @@ dependencies = [
 name = "warpgate_api"
 version = "0.16.1"
 dependencies = [
- "anyhow",
  "derive_setters",
  "rustc-hash",
  "schematic",

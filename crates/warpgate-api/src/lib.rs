@@ -1,10 +1,10 @@
+
 mod host;
 mod host_funcs;
 mod locator;
 mod locator_error;
 mod virtual_path;
 
-pub use anyhow::anyhow;
 pub use host::*;
 pub use host_funcs::*;
 pub use locator::*;
@@ -46,6 +46,3 @@ api_struct!(
     /// Represents an empty input.
     pub struct EmptyInput {}
 );
-
-/// Represents any result (using `anyhow`).
-pub type AnyResult<T> = anyhow::Result<T>;

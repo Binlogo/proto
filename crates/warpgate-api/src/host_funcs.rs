@@ -1,5 +1,7 @@
+use std::string::FromUtf8Error;
+
 use crate::virtual_path::VirtualPath;
-use crate::{AnyResult, api_struct, api_unit_enum};
+use crate::{api_struct, api_unit_enum};
 use derive_setters::Setters;
 use rustc_hash::FxHashMap;
 use serde::de::DeserializeOwned;
@@ -209,12 +211,12 @@ api_struct!(
 
 impl SendRequestOutput {
     /// Consume the response body and return as JSON.
-    pub fn json<T: DeserializeOwned>(self) -> AnyResult<T> {
-        Ok(serde_json::from_slice(&self.body)?)
+    pub fn json<T: DeserializeOwned>(self) -> serde_json::Result<T> {
+        serde_json::from_slice(&self.body)
     }
 
     /// Consume the response body and return as raw text.
-    pub fn text(self) -> AnyResult<String> {
-        Ok(String::from_utf8(self.body)?)
+    pub fn text(self) -> Result<String, FromUtf8Error> {
+        String::from_utf8(self.body)
     }
 }

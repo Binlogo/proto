@@ -6,8 +6,8 @@ use std::ffi::OsStr;
 use std::path::PathBuf;
 use std::vec;
 use warpgate_api::{
-    AnyResult, ExecCommandInput, ExecCommandOutput, HostEnvironment, HostOS, SendRequestInput,
-    SendRequestOutput, TestEnvironment, VirtualPath, anyhow,
+    ExecCommandInput, ExecCommandOutput, HostEnvironment, HostOS, SendRequestInput,
+    SendRequestOutput, TestEnvironment, VirtualPath,
 };
 
 #[host_fn]
@@ -21,7 +21,7 @@ extern "ExtismHost" {
 }
 
 /// Fetch the requested input and return a response.
-pub fn fetch(input: SendRequestInput) -> AnyResult<SendRequestOutput> {
+pub fn fetch(input: SendRequestInput) -> FnResult<SendRequestOutput> {
     let url = input.url.clone();
     let response = send_request!(input, input);
     let status = response.status;
@@ -34,21 +34,23 @@ pub fn fetch(input: SendRequestInput) -> AnyResult<SendRequestOutput> {
             url, body
         );
 
-        return Err(anyhow!(
+        return Err(Error::msg(format!(
             "Failed to request <url>{url}</url> <mutedlight>({})</mutedlight>",
             status
-        ));
+        )).into());
     }
 
     if response.body.is_empty() {
-        return Err(anyhow!("Invalid response from <url>{url}</url>, no body"));
+        return Err(Error::msg(format!(
+            "Invalid response from <url>{url}</url>, no body"
+        )).into());
     }
 
     Ok(response)
 }
 
 /// Fetch the provided URL and return the response as bytes.
-pub fn fetch_bytes<U>(url: U) -> AnyResult<Vec<u8>>
+pub fn fetch_bytes<U>(url: U) -> FnResult<Vec<u8>>
 where
     U: AsRef<str>,
 {
@@ -56,29 +58,29 @@ where
 }
 
 /// Fetch the provided URL and deserialize the response as JSON.
-pub fn fetch_json<U, R>(url: U) -> AnyResult<R>
+pub fn fetch_json<U, R>(url: U) -> FnResult<R>
 where
     U: AsRef<str>,
     R: DeserializeOwned,
 {
-    fetch(SendRequestInput::new(url))?.json()
+    Ok(fetch(SendRequestInput::new(url))?.json()?)
 }
 
 /// Fetch the provided URL and return the response as text.
-pub fn fetch_text<U>(url: U) -> AnyResult<String>
+pub fn fetch_text<U>(url: U) -> FnResult<String>
 where
     U: AsRef<str>,
 {
-    fetch(SendRequestInput::new(url))?.text()
+    Ok(fetch(SendRequestInput::new(url))?.text()?)
 }
 
 /// Execute a command on the host with the provided input.
-pub fn exec(input: ExecCommandInput) -> AnyResult<ExecCommandOutput> {
+pub fn exec(input: ExecCommandInput) -> FnResult<ExecCommandOutput> {
     Ok(exec_command!(input, input))
 }
 
 /// Execute a command on the host and capture its output (pipe).
-pub fn exec_captured<C, I, A>(command: C, args: I) -> AnyResult<ExecCommandOutput>
+pub fn exec_captured<C, I, A>(command: C, args: I) -> FnResult<ExecCommandOutput>
 where
     C: AsRef<str>,
     I: IntoIterator<Item = A>,
@@ -88,7 +90,7 @@ where
 }
 
 /// Execute a command on the host and stream its output to the console (inherit).
-pub fn exec_streamed<C, I, A>(command: C, args: I) -> AnyResult<ExecCommandOutput>
+pub fn exec_streamed<C, I, A>(command: C, args: I) -> FnResult<ExecCommandOutput>
 where
     C: AsRef<str>,
     I: IntoIterator<Item = A>,
@@ -99,7 +101,7 @@ where
 
 /// Load all Git tags from the provided remote URL.
 /// The `git` binary must exist on the host machine.
-pub fn load_git_tags<U>(url: U) -> AnyResult<Vec<String>>
+pub fn load_git_tags<U>(url: U) -> FnResult<Vec<String>>
 where
     U: AsRef<str>,
 {
@@ -169,7 +171,7 @@ pub fn command_exists(env: &HostEnvironment, command: &str) -> bool {
 }
 
 /// Return the value of an environment variable on the host machine.
-pub fn get_host_env_var<K>(key: K) -> AnyResult<Option<String>>
+pub fn get_host_env_var<K>(key: K) -> FnResult<Option<String>>
 where
     K: AsRef<str>,
 {
@@ -179,7 +181,7 @@ where
 }
 
 /// Set the value of an environment variable on the host machine.
-pub fn set_host_env_var<K, V>(key: K, value: V) -> AnyResult<()>
+pub fn set_host_env_var<K, V>(key: K, value: V) -> FnResult<()>
 where
     K: AsRef<str>,
     V: AsRef<str>,
@@ -190,7 +192,7 @@ where
 }
 
 /// Append paths to the `PATH` environment variable on the host machine.
-pub fn add_host_paths<I, P>(paths: I) -> AnyResult<()>
+pub fn add_host_paths<I, P>(paths: I) -> FnResult<()>
 where
     I: IntoIterator<Item = P>,
     P: AsRef<str>,
@@ -205,7 +207,7 @@ where
 
 /// Convert the provided path into a [`PathBuf`] instance,
 /// with the prefix resolved absolutely to the host.
-pub fn into_real_path<P>(path: P) -> AnyResult<PathBuf>
+pub fn into_real_path<P>(path: P) -> FnResult<PathBuf>
 where
     P: AsRef<OsStr>,
 {
@@ -216,7 +218,7 @@ where
 
 /// Convert the provided path into a [`VirtualPath`] instance,
 /// with the prefix resolved to the WASM virtual whitelist.
-pub fn into_virtual_path<P>(path: P) -> AnyResult<VirtualPath>
+pub fn into_virtual_path<P>(path: P) -> FnResult<VirtualPath>
 where
     P: AsRef<OsStr>,
 {
@@ -226,12 +228,12 @@ where
 }
 
 /// Return the ID for the current plugin.
-pub fn get_plugin_id() -> AnyResult<String> {
+pub fn get_plugin_id() -> FnResult<String> {
     Ok(config::get("plugin_id")?.expect("Missing plugin ID!"))
 }
 
 /// Return information about the host environment.
-pub fn get_host_environment() -> AnyResult<HostEnvironment> {
+pub fn get_host_environment() -> FnResult<HostEnvironment> {
     let config = config::get("host_environment")?.expect("Missing host environment!");
     let config: HostEnvironment = json::from_str(&config)?;
 
@@ -239,7 +241,7 @@ pub fn get_host_environment() -> AnyResult<HostEnvironment> {
 }
 
 /// Return information about the testing environment.
-pub fn get_test_environment() -> AnyResult<Option<TestEnvironment>> {
+pub fn get_test_environment() -> FnResult<Option<TestEnvironment>> {
     if let Some(config) = config::get("test_environment")? {
         return Ok(json::from_str(&config)?);
     }

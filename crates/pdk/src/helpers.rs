@@ -1,5 +1,5 @@
 use extism_pdk::*;
-use proto_pdk_api::{AnyResult, HostArch, HostEnvironment, HostLibc, HostOS, PluginError};
+use proto_pdk_api::{HostArch, HostEnvironment, HostLibc, HostOS, PluginError};
 use rustc_hash::FxHashMap;
 use serde::de::DeserializeOwned;
 
@@ -9,7 +9,7 @@ pub fn check_supported_os_and_arch(
     tool: &str,
     env: &HostEnvironment,
     permutations: FxHashMap<HostOS, Vec<HostArch>>,
-) -> AnyResult<()> {
+) -> Result<(), PluginError> {
     if let Some(archs) = permutations.get(&env.os) {
         if !archs.contains(&env.arch) {
             return Err(PluginError::UnsupportedTarget {
@@ -53,9 +53,12 @@ pub fn get_target_triple(env: &HostEnvironment, name: &str) -> Result<String, Pl
 }
 
 /// Get proto tool configuration that was configured in a `.prototools` file.
-pub fn get_tool_config<T: Default + DeserializeOwned>() -> AnyResult<T> {
-    let config: T = if let Some(value) = config::get("proto_tool_config")? {
-        json::from_str(&value)?
+pub fn get_tool_config<T: Default + DeserializeOwned>() -> Result<T, PluginError> {
+    let config: T = if let Some(value) = config::get("proto_tool_config")
+        .map_err(|e| PluginError::Message(format!("Failed to get proto tool config: {e}")))?
+    {
+        json::from_str(&value)
+            .map_err(|e| PluginError::Message(format!("Failed parse tool config: {e}")))?
     } else {
         T::default()
     };
